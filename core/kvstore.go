@@ -6,46 +6,56 @@ import (
 	"io/ioutil"
 )
 
+var EmptyAccount Account
+
+type Account struct {
+	Username string
+	Password string
+	Notes    string
+}
+
+func NewAccount(aInfo []string) Account {
+	if len(aInfo) < 3 {
+		return Account{}
+	}
+	return Account{
+		Username: aInfo[0],
+		Password: aInfo[1],
+		Notes:    aInfo[2],
+	}
+}
+
 type KVStore struct {
 	*Crypto
 
-	filename     string
-	cache        map[string]string
-	encryptCache map[string]string
+	cache        map[string]Account
+	encryptCache map[string]Account
 }
 
-func NewKVStore(filename string) *KVStore {
+func NewKVStore() *KVStore {
 	kv := &KVStore{
 		Crypto:       new(Crypto),
-		filename:     filename,
-		cache:        make(map[string]string),
-		encryptCache: make(map[string]string),
+		cache:        make(map[string]Account),
+		encryptCache: make(map[string]Account),
 	}
 	return kv
 }
 
-func (kv *KVStore) Get(key string) (string, bool) {
+func (kv *KVStore) Get(key string) (Account, bool) {
 	value, ok := kv.cache[key]
 	return value, ok
 }
 
-func (kv *KVStore) Update(key, value string) bool {
-	if oldValue, ok := kv.cache[key]; ok {
-		if oldValue == value {
-			return true
-		}
-	}
-	ev, err := kv.Encrypt(value)
+func (kv *KVStore) Update(key string, value Account) bool {
+	ep, err := kv.Encrypt(value.Password)
 	if err != nil {
 		fmt.Printf("[ERROR] Encryption err: %s\n", err)
 		return false
 	}
 	kv.cache[key] = value
+	ev := value
+	ev.Password = ep
 	kv.encryptCache[key] = ev
-	if err := kv.Write(); err != nil {
-		fmt.Printf("[ERROR] KVStore write err: %s\n", err)
-		return false
-	}
 	return true
 }
 
@@ -53,10 +63,6 @@ func (kv *KVStore) Delete(key string) bool {
 	if _, ok := kv.cache[key]; ok {
 		delete(kv.cache, key)
 		delete(kv.encryptCache, key)
-		if err := kv.Write(); err != nil {
-			fmt.Printf("[ERROR] KVStore write err: %s\n", err)
-			return false
-		}
 	}
 	return true
 }
@@ -64,37 +70,39 @@ func (kv *KVStore) Delete(key string) bool {
 func (kv *KVStore) List() [][]string {
 	var retList [][]string
 	for k, v := range kv.cache {
-		entry := []string{k, v}
+		entry := []string{k, v.Username, v.Password, v.Notes}
 		retList = append(retList, entry)
 	}
 	return retList
 }
 
-func (kv *KVStore) Read() error {
-	rawKV, err := ioutil.ReadFile(kv.filename)
+func (kv *KVStore) Read(filename string) error {
+	rawKV, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-	kv.encryptCache = make(map[string]string)
+	kv.encryptCache = make(map[string]Account)
 	if err = json.Unmarshal(rawKV, &kv.encryptCache); err != nil {
 		return err
 	}
-	kv.cache = make(map[string]string)
+	kv.cache = make(map[string]Account)
 	for k, v := range kv.encryptCache {
-		if dv, err := kv.Decrypt(v); err != nil {
+		if dp, err := kv.Decrypt(v.Password); err != nil {
 			return err
 		} else {
+			dv := v
+			dv.Password = dp
 			kv.cache[k] = dv
 		}
 	}
 	return nil
 }
 
-func (kv *KVStore) Write() error {
+func (kv *KVStore) Write(filename string) error {
 	dat, err := json.Marshal(kv.encryptCache)
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(kv.filename, dat, 0644)
+	err = ioutil.WriteFile(filename, dat, 0644)
 	return err
 }

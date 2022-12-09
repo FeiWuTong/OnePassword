@@ -1,7 +1,9 @@
 package interact
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -12,7 +14,7 @@ func EntryMemu() (string, string) {
 	fmt.Printf("[HINT] Enter OnePassword to generate sk: ")
 	fmt.Scanln(&sk)
 	fmt.Printf("[HINT] Enter filename for records (default '%s', empty line to skip): ", DefaultFile)
-	fmt.Scanf("%s", &filename)
+	fmt.Scanf("%s\n", &filename)
 	if len(filename) == 0 {
 		filename = DefaultFile
 	}
@@ -45,32 +47,64 @@ func FindHint() string {
 	return name
 }
 
-func AddHint() (string, string) {
-	var name, pwd, yn string
+func AddHint() (string, []string) {
+	var app, yn string
+	info := make([]string, 3)
+	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("[HINT] Enter app's name to add: ")
-	fmt.Scanln(&name)
+	app, _ = reader.ReadString('\n')
+	app = strings.TrimSpace(app)
+	if len(app) == 0 {
+		fmt.Println("[ERROR] app's name cannot be empty")
+		return "", []string{}
+	}
+	fmt.Printf("[HINT] Enter app's username (empty is ok): ")
+	fmt.Scanln(&info[0])
 	fmt.Printf("[HINT] Enter app's password: ")
-	fmt.Scanln(&pwd)
+	fmt.Scanln(&info[1])
+	if len(info[1]) == 0 {
+		fmt.Println("[ERROR] password cannot be empty")
+		return "", []string{}
+	}
+	fmt.Printf("[HINT] Enter app's notes (empty is ok): ")
+	info[2], _ = reader.ReadString('\n')
+	info[2] = strings.TrimSpace(info[2])
 	fmt.Printf("[HINT] Make sure to add? Enter y or n: ")
 	fmt.Scanln(&yn)
 	if len(yn) > 0 && yn[0] == 'y' {
-		return name, pwd
+		return app, info
 	}
-	return "", ""
+	return "", []string{}
 }
 
-func UpdateHint() (string, string) {
-	var name, pwd, yn string
+func UpdateHint() (string, []string) {
+	var app, yn string
+	info := make([]string, 3)
+	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("[HINT] Enter app's name to update: ")
-	fmt.Scanln(&name)
+	app, _ = reader.ReadString('\n')
+	app = strings.TrimSpace(app)
+	if len(app) == 0 {
+		fmt.Println("[ERROR] app's name cannot be empty")
+		return "", []string{}
+	}
+	fmt.Printf("[HINT] Enter app's username (empty is ok): ")
+	fmt.Scanln(&info[0])
 	fmt.Printf("[HINT] Enter app's password: ")
-	fmt.Scanln(&pwd)
+	fmt.Scanln(&info[1])
+	if len(info[1]) == 0 {
+		fmt.Println("[ERROR] password cannot be empty")
+		return "", []string{}
+	}
+	fmt.Printf("[HINT] Enter app's notes (empty is ok): ")
+	info[2], _ = reader.ReadString('\n')
+	info[2] = strings.TrimSpace(info[2])
 	fmt.Printf("[HINT] Make sure to update? Enter y or n: ")
 	fmt.Scanln(&yn)
 	if len(yn) > 0 && yn[0] == 'y' {
-		return name, pwd
+		return app, info
 	}
-	return "", ""
+	return "", []string{}
 }
 
 func DeleteHint() string {
